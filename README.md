@@ -4,9 +4,12 @@
 
 
 set FLASK_ENV='development'
+
 set FLASK_APP=app.py
+
 poetry run flask run
 
 
 для того щоб запустити з WSGI-сервера потрібно у Git Bash виконати:
+
 waitress-serve —port=8000 pplabs:app
