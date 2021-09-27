@@ -10,6 +10,8 @@ set FLASK_APP=app.py
 poetry run flask run
 
 
+Для перевірку заходимо на http://localhost:5000/api/v1/hello-world-3
+
 
 Для того щоб запустити з WSGI-сервера потрібно у Git Bash виконати:
 
