@@ -1,0 +1,414 @@
+openapi: 3.0.0
+info: 
+  title: Article Service API
+  description:  Написати сервіс статей (2000 символів). Статті є публічними для всіх, зареєстровані користувачі можуть редагувати статтю та очікувати на схвалення її модераторами (користувачі із більшими правами). Передбачити варіант редагування, коли стаття на розгляді модератором, а інший користувач її теж редагує. Модератори мають бачити статті, які очікують їх схвалення.
+  version: 1.0.0 
+  
+    
+paths:
+  /user:
+    post:
+      tags:
+      - user
+      summary: Create user
+      parameters:
+      - in: query
+        name: body
+        description: Created user object
+        required: true
+        schema:
+          $ref: '#/components/schemas/user'
+      responses:
+        200:
+          description: successful operation
+      
+  /user/login:
+    get:
+      tags:
+      - user
+      summary: Logs user into the system
+      operationId: loginUser
+      parameters:
+      - name: username
+        in: query
+        description: The user name for login
+        required: true
+        schema:
+          type: string
+      - name: password
+        in: query
+        description: The password for login in clear text
+        required: true
+        schema:
+          type: string
+      - name: moderator
+        in: query
+        required: true
+        schema:
+          type: boolean 
+      responses:
+        200:
+          description: successful operation
+          headers:
+            X-Rate-Limit:
+              description: calls per hour allowed by the user
+              schema:
+                type: integer
+                format: int32
+            X-Expires-After:
+              description: date in UTC when token expires
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/xml:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: string
+        400:
+          description: Invalid username/password supplied
+        410:
+          description: Can't be a moderator
+  /user/logout:
+    get:
+      tags:
+      - "user"
+      summary: Logs out current logged in user session
+      operationId: logoutUser
+      parameters: []
+      responses:
+        200:
+          description: successful operation
+      security:
+      - user_auth:
+        - write:users
+        - read:users
+  /user/{username}:
+    get:
+      tags:
+      - user
+      summary: Get user by user name
+      operationId: getUserByName
+      parameters:
+      - name: username
+        in: path
+        description: 'The name that needs to be fetched. Use user1 for testing. '
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/user'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user'
+        400:
+          description: Invalid username supplied
+          
+        404:
+          description: User not found
+      
+    put:
+      tags:
+      - user
+      summary: Update user
+      description: This can only be done by the logged in user.
+      operationId: updateUser
+      parameters:
+      - name: username
+        in: path
+        description: name that need to be updated
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Updated user object
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/user'
+        required: true
+      responses:
+        200:
+          description: successful operation
+        400:
+          description: Invalid user supplied
+        404:
+          description: User not found
+      x-codegen-request-body-name: body
+      security:
+      - user_auth:
+        - write:users
+        - read:users
+    delete:
+      tags:
+      - user
+      summary: Delete user
+      description: This can only be done by the logged in user.
+      operationId: deleteUser
+      parameters:
+      - name: username
+        in: path
+        description: The name that needs to be deleted
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: successful operation
+      
+        400:
+          description: Invalid username supplied
+          
+        404:
+          description: User not found
+      security:
+      - user_auth:
+        - write:users
+        - read:users
+  /article:
+    post:
+      tags:
+      - article
+      summary: Create an article
+      parameters:
+      - in: query
+        name: body
+        description: Created article object
+        required: true
+        schema:
+          $ref: '#/components/schemas/article'
+      responses:
+        200:
+         description: successfully added
+      security:
+      - user_auth:
+        - write:users
+        - read:users
+  /article/{ArticleId}:
+    get:
+      tags:
+      - article
+      summary: Get an article
+      parameters:
+      - name: ArticleId
+        in: path
+        description: Created article object
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/article'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/article'
+        400:
+          description: Invalid article supplied
+          
+        404:
+          description: article not found
+    delete:
+      tags:
+      - article
+      summary: Delete article
+      parameters:
+      - name: ArticleId
+        in: path
+        description: The Article that needs to be deleted
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: successful operation
+      
+        400:
+          description: Invalid Article supplied
+          
+        404:
+          description: Article not found 
+      security:
+      - user_auth:
+        - write:users
+        - read:users
+  /versions:
+    post:
+      tags:
+      - versions
+      parameters:
+      - in: query
+        name: body
+        description: Created version 
+        required: true
+        schema:
+          $ref: '#/components/schemas/editedArticle'
+      responses:
+        200:
+          description: successfully added
+      security:
+      - user_auth:
+        - write:users
+        - read:users
+  /versions/{ChangedId}:
+    get:
+      tags:
+      - versions
+      parameters:
+      - name: ChangedId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          description: successful operation
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/editedArticle'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/editedArticle'
+        400:
+          description: Invalid article supplied
+          
+        404:
+          description: article not found
+    put:
+      tags:
+      - versions
+      parameters:
+      - name: ChangedId
+        in: path
+        description: Created article object
+        required: true
+        schema:
+          type: string
+      requestBody:
+        description: Updated user object
+        content:
+          '*/*':
+            schema:
+              $ref: '#/components/schemas/editedArticle'
+        required: true
+      responses:
+        200:
+          description: successful operation
+        400:
+          description: Invalid article supplied
+        404:
+          description: Article not found
+      x-codegen-request-body-name: body
+      security:
+      - moderator_auth:
+        - write:users
+        - read:users
+    delete:
+      tags:
+      - versions
+      parameters:
+      - name: ChangedId
+        in: path
+        description: The Article that needs to be deleted
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: successful operation
+      
+        400:
+          description: Invalid Article supplied
+          
+        404:
+          description: Article not found 
+      security:
+      - moderator_auth:
+        - write:users
+        - read:users
+components:
+  schemas:
+    user:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+      xml:
+        name: user
+    article:
+      type: object
+      properties: 
+        ArticleId: 
+          type: integer 
+          format: int64
+        ArticleName:
+          type: string
+        ArticleAuthor:
+          type: string
+        Text:
+          type: string
+    editedArticle:
+      type: object
+      properties:
+        OriginalId: 
+          type: integer 
+          format: int64
+        ChangedId: 
+          type: integer
+          format: int64
+        UserId:
+          type: integer
+          format: int64
+        Changes:
+          type: string
+        Status:
+          type: string
+          description: article status
+          enum:
+          - accepted
+          - declined
+  securitySchemes:
+    user_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: http://article.swagger.io/oauth/dialog
+          scopes:
+            write:users: modify users
+            read:users: read users
+    moderator_auth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: http://article.swagger.io/oauth/dialog
+          scopes:
+            write:article: modify users
+            read:article: read users
+                      
+   
+
+                      
