@@ -6,3 +6,12 @@ poetry run flask run
 
 для того щоб запустити з WSGI-сервера потрібно у Git Bash виконати:
 waitress-serve —port=8000 pplabs:app
+
+Anaconda powershell:
+створити і активувати середовище, потім:
+pip install alembic
+alembic init alembic
+change sqlalchemy.url in your alembic.ini file.
+alembic revision --autogenerate -m 'Initial script'
+alembic upgrade head
+pip install sqlacodegen
