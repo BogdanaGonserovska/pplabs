@@ -20,6 +20,7 @@ class Article(Base):
     user = relationship('User')
     articleversion = relationship('Articleversion', primaryjoin='Article.versionId == Articleversion.id')
 
+ArticleVersionStatus = Enum('new', 'accepted', 'declined')
 
 class Articleversion(Base):
     __tablename__ = 'articleversion'
@@ -31,7 +32,7 @@ class Articleversion(Base):
     articleId = Column(ForeignKey('article.id', ondelete='RESTRICT', onupdate='RESTRICT'), index=True)
     name = Column(String(255), nullable=False)
     text = Column(Text, nullable=False)
-    status = Column(Enum('new', 'accepted', 'declined'), nullable=False)
+    status = Column(ArticleVersionStatus, nullable=False)
     moderatorUserId = Column(ForeignKey('user.id', ondelete='RESTRICT', onupdate='RESTRICT'), index=True)
     moderatedDate = Column(DateTime, index=True)
     declineReason = Column(String(255))
@@ -56,7 +57,7 @@ class User(Base):
     isActive = Column(Boolean, nullable=False)
 
 
-class Userlogin(Base):
+class UserLogin(Base):
     __tablename__ = 'userlogins'
 
     id = Column(Integer, primary_key=True)

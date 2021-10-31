@@ -11,7 +11,11 @@ Anaconda powershell:
 створити і активувати середовище, потім:
 pip install alembic
 alembic init alembic
+Потім:
 change sqlalchemy.url in your alembic.ini file.
+Для створення скриптів міграцій в новий файл alembic: 
 alembic revision --autogenerate -m 'Initial script'
+Для створення таблиць у базі даних:
 alembic upgrade head
+Щоб створити автоматично таблиці з бази даних в MySQL:
 pip install sqlacodegen
