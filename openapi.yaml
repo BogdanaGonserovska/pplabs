@@ -260,12 +260,12 @@ paths:
       - user_auth:
         - write:users
         - read:users
-  /versions/{ChangedId}:
+  /versions/{Id}:
     get:
       tags:
       - versions
       parameters:
-      - name: ChangedId
+      - name: Id
         in: path
         required: true
         schema:
@@ -289,7 +289,7 @@ paths:
       tags:
       - versions
       parameters:
-      - name: ChangedId
+      - name: Id
         in: path
         description: Created article object
         required: true
@@ -318,7 +318,7 @@ paths:
       tags:
       - versions
       parameters:
-      - name: ChangedId
+      - name: Id
         in: path
         description: The Article that needs to be deleted
         required: true
@@ -357,6 +357,10 @@ components:
           type: string
         phone:
           type: string
+        isModerator:
+          type: boolean
+        isActive:
+          type: boolean            
       xml:
         name: user
     article:
@@ -371,19 +375,33 @@ components:
           type: string
         Text:
           type: string
+        VersionId:
+          type: integer
+          format: int64
+        PublishDate:
+          type: date-time
+        LastModeficstion:
+          type: date-time
     editedArticle:
       type: object
       properties:
+        Id: 
+          type: integer 
+          format: int64
+        EditorUserId:
+          type: integer 
+          format: int64
+        Date:
+          type: date-time
         OriginalId: 
           type: integer 
           format: int64
-        ChangedId: 
+        ArticleId: 
           type: integer
           format: int64
-        UserId:
-          type: integer
-          format: int64
-        Changes:
+        Name:
+          type: string
+        Text:
           type: string
         Status:
           type: string
@@ -391,6 +409,13 @@ components:
           enum:
           - accepted
           - declined
+        ModeratorUserId:
+          type: integer
+          format: int64
+        ModeratedDate:
+          type: date-time
+        DeclineReason:
+          type: string
   securitySchemes:
     user_auth:
       type: oauth2
