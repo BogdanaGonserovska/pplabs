@@ -1,14 +1,9 @@
 import datetime, uuid
 import sqlalchemy
-
 from typing import List
 from sqlalchemy import create_engine, or_, and_
 from sqlalchemy.sql import exists
 from sqlalchemy.orm import sessionmaker, Query, aliased
-
-mysql_engine = create_engine("mysql+pymysql://root:Ira.ko03@127.0.0.1:3306/article_service", encoding="utf-8", echo=True, future=True)
-Session = sessionmaker(bind=mysql_engine)
-session = Session()
 
 from model import User, UserLogin, Articleversion, Article, ArticleVersionStatus
 
@@ -241,68 +236,67 @@ def getArticleVersion(id: int) -> ArticleVersionInfo:
         .filter(Articleversion.id == id)\
         .one_or_none()
 
-    if (article == None):
-        raise Exception("Article Version does not exist")
+    #if (article == None):
+     #   raise Exception("Article Version does not exist")
 
     return articleVersion
 
-if (not session.query(session.query(User).filter(User.username == "BettyBoom").exists()).scalar()):
-    moderatorUser = createUser("Tom2", "Tom", "Jerry", "tom@gmail.com", "ttttom", "+23 0394756182")
-    setAsModerator(moderatorUser.id)
-if (not session.query(session.query(User).filter(User.username == "BettyBoom").exists()).scalar()):
-    createUser("BettyBoom", "Betty", "Blossom", "bet.bloss7@gmail.com", "b1l2o3s4s5o6m", "+84 0782538460")
-if (not session.query(session.query(User).filter(User.username == "MickeyMouse").exists()).scalar()):
-    createUser("MickeyMouse", "Mickey", "Dark", "mickey.dark9097@gmail.com", "MickeY123", "+54 7583752084")
+#if (not session.query(session.query(User).filter(User.username == "BettyBoom").exists()).scalar()):
+ #   moderatorUser = createUser("Tom2", "Tom", "Jerry", "tom@gmail.com", "ttttom", "+23 0394756182")
+  #  setAsModerator(moderatorUser.id)
+#if (not session.query(session.query(User).filter(User.username == "BettyBoom").exists()).scalar()):
+ #   createUser("BettyBoom", "Betty", "Blossom", "bet.bloss7@gmail.com", "b1l2o3s4s5o6m", "+84 0782538460")
+#if (not session.query(session.query(User).filter(User.username == "MickeyMouse").exists()).scalar()):
+ #   createUser("MickeyMouse", "Mickey", "Dark", "mickey.dark9097@gmail.com", "MickeY123", "+54 7583752084")
 
-editorUserToken = loginUser("BettyBoom", "b1l2o3s4s5o6m")
-editorUser = getCurrentUser(editorUserToken)
+#editorUserToken = loginUser("BettyBoom", "b1l2o3s4s5o6m")
+#editorUser = getCurrentUser(editorUserToken)
 
-moderatorUserToken = loginUser("Tom2", "ttttom")
-moderatorUser = getCurrentUser(moderatorUserToken)
+#moderatorUserToken = loginUser("Tom2", "ttttom")
+#moderatorUser = getCurrentUser(moderatorUserToken)
 
-version = createVersion(editorUser, "New Article", "This article is about ...")
-article = acceptVersion(moderatorUser, version.id)
-editedArticleVersion = createVersion(editorUser, "Updated Article", "This article is not about ...", article.versionId)
+#version = createVersion(editorUser, "New Article", "This article is about ...")
+#article = acceptVersion(moderatorUser, version.id)
+#editedArticleVersion = createVersion(editorUser, "Updated Article", "This article is not about ...", article.versionId)
 
-article = acceptVersion(moderatorUser, editedArticleVersion.id)
+#article = acceptVersion(moderatorUser, editedArticleVersion.id)
 
-otherEditedArticleVersion = createVersion(editorUser, "Updated Article in parralel", "This is quite long change and I'm not sure if my changes will be accepted ...", version.id)
-#article = acceptVersion(moderatorUser, otherEditedArticleVersion.id)
-article = declineVersion(moderatorUser, otherEditedArticleVersion.id, "Article was changed since you started your updates. Please merge your updates with the most recent version and resubmit")
+#otherEditedArticleVersion = createVersion(editorUser, "Updated Article in parralel", "This is quite long change and I'm not sure if my changes will be accepted ...", version.id)
+##article = acceptVersion(moderatorUser, otherEditedArticleVersion.id)
+#article = declineVersion(moderatorUser, otherEditedArticleVersion.id, "Article was changed since you started your updates. Please merge your updates with the most recent version and resubmit")
 
-searchText = "Betty Blossom"
-list = findArticles(searchText)
-print("Articles Search Text:", searchText)
-for x in list:
-    print(x.id, "|", x.name, "|", x.authorName, "|", x.publishDate)
+#searchText = "Betty Blossom"
+#list = findArticles(searchText)
+#print("Articles Search Text:", searchText)
+#for x in list:
+  #  print(x.id, "|", x.name, "|", x.authorName, "|", x.publishDate)
 
-articleId = list[0].id
-article = getArticle(articleId)
-print("== Article #", articleId, " ==") 
-print("Author: ", article.authorName) 
-print("Name: ", article.name) 
-print("Text: ", article.text) 
-print("Version ID: ", article.versionId) 
+#articleId = list[0].id
+#article = getArticle(articleId)
+#print("== Article #", articleId, " ==") 
+#print("Author: ", article.authorName) 
+#print("Name: ", article.name) 
+#print("Text: ", article.text) 
+#print("Version ID: ", article.versionId) 
 
 
-searchText = "Updated Article"
-status: ArticleVersionStatus = 'declined'
-articleVersions = findArticleVersions(status, "Updated Article")
-print("Article Versions Search Text:", searchText, "| Status:", status)
-for x in articleVersions:
-    print(x.id, "|", x.name, "|", x.status, "|", x.authorName, "|", x.publishDate, "|", x.versionDate, "|", x.editorName, "|", x.moderatorName)
+#searchText = "Updated Article"
+#status: ArticleVersionStatus = 'declined'
+#articleVersions = findArticleVersions(status, "Updated Article")
+#print("Article Versions Search Text:", searchText, "| Status:", status)
+#for x in articleVersions:
+ #   print(x.id, "|", x.name, "|", x.status, "|", x.authorName, "|", x.publishDate, "|", x.versionDate, "|", x.editorName, "|", x.moderatorName)
 
-articleVersionId = articleVersions[len(articleVersions)-1].id
-articleVersion = getArticleVersion(articleVersionId)
-print("== Article Version #", articleVersionId, " ==") 
-print("Editor Name: ", articleVersion.editorName) 
-print("Original ID: ", articleVersion.originalId) 
-print("Original Date: ", articleVersion.originalDate) 
-print("Version ID: ", articleVersion.id) 
-print("Version Date: ", articleVersion.versionDate) 
-print("Version Status: ", articleVersion.status) 
-print("Original Name: ", articleVersion.originalName) 
-print("Updated Name: ", articleVersion.name) 
-print("Original Text: ", articleVersion.originalText) 
-print("Updated  Text: ", articleVersion.text) 
-
+#articleVersionId = articleVersions[len(articleVersions)-1].id
+#articleVersion = getArticleVersion(articleVersionId)
+#print("== Article Version #", articleVersionId, " ==") 
+#print("Editor Name: ", articleVersion.editorName) 
+#print("Original ID: ", articleVersion.originalId) 
+#print("Original Date: ", articleVersion.originalDate) 
+#print("Version ID: ", articleVersion.id) 
+#print("Version Date: ", articleVersion.versionDate) 
+#print("Version Status: ", articleVersion.status) 
+#print("Original Name: ", articleVersion.originalName) 
+#print("Updated Name: ", articleVersion.name) 
+#print("Original Text: ", articleVersion.originalText) 
+#print("Updated  Text: ", articleVersion.text) 

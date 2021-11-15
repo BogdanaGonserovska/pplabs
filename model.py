@@ -1,10 +1,13 @@
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine
 
 Base = declarative_base()
 metadata = Base.metadata
-
+mysql_engine = create_engine("mysql+pymysql://root:1234432aat@localhost/article_service", encoding="utf-8", echo=True, future=True)
+Session = sessionmaker(bind=mysql_engine)
+session = Session()
 
 class Article(Base):
     __tablename__ = 'article'
