@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 
 Base = declarative_base()
 metadata = Base.metadata
-mysql_engine = create_engine("mysql+pymysql://root:1234432aat@localhost/article_service", encoding="utf-8", echo=True, future=True)
+mysql_engine = create_engine("mysql+pymysql://root:12272027@localhost/articles", encoding="utf-8", echo=True, future=True)
 Session = sessionmaker(bind=mysql_engine)
 session = Session()
 

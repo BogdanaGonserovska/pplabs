@@ -4,14 +4,25 @@ from model import User, Article, Articleversion, Session
 from schema import UserSchema, ArticleSchema, ArticleVersionSchema
 from marshmallow import ValidationError
 from datetime import datetime
+from flask_httpauth import HTTPBasicAuth
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 session = Session()
+auth = HTTPBasicAuth()
 
 @app.route('/api/v1/hello-world-3')
 def hello():
     return 'Hello World 3'
+
+if __name__ == "__main__":
+    app.run(debug=False)
+
+@auth.verify_password
+def verify_password(username, password):
+    found_user = session.query(User).filter_by(username=username).one_or_none()
+    if found_user is not None and bcrypt.check_password_hash(found_user.password, password):
+        return found_user
 
 @app.route('/user', methods=['POST'])
 def create_user():
@@ -24,7 +35,7 @@ def create_user():
         password = bcrypt.generate_password_hash(data['password']).decode('utf-8'),
         phone = data['phone'],
         isActive = True,
-        isModerator = False
+        isModerator = data['isModerator']
     )
     
     if not session.query(User).filter(User.username == data['username']).one_or_none() is None:
@@ -40,13 +51,14 @@ def create_user():
 
 @app.route('/user/login', methods=['GET'])
 def login():
-    pass
+    pass;
 
 @app.route('/user/logout', methods=['GET'])
 def logout():
     pass
 
 @app.route('/user/<username>', methods=['GET'])
+@auth.login_required
 def get_user(username):
     find_user = session.query(User).filter(User.username == username).one_or_none()
     user_schema = UserSchema()
@@ -58,14 +70,21 @@ def get_user(username):
     if find_user is None:
         return 'User not found', '404'
 
+    if find_user.username != auth.current_user().username:
+        return 'You don\'t have required permission', '401'
+
     return user
 
 @app.route('/user/<username>', methods=['PUT'])
+@auth.login_required
 def edit_user(username):
     find_user = session.query(User).filter(User.username == username).one_or_none()
     
     if find_user is None:
         return 'User not found', '404'
+
+    if find_user.username != auth.current_user().username:
+        return 'You can\'t update this user', '401'
 
     data = request.json
     if username != data['username']:
@@ -76,8 +95,8 @@ def edit_user(username):
             return 'This email is taken', '400'
 
     find_user.username = data['username'] if 'username' in data else find_user.username
-    find_user.firstName = data['name'] if 'firstName' in data else find_user.firstName
-    find_user.lastName = data['surname'] if 'lastName' in data else find_user.lastName
+    find_user.firstName = data['firstName'] if 'firstName' in data else find_user.firstName
+    find_user.lastName = data['lastName'] if 'lastName' in data else find_user.lastName
     find_user.email = data['email'] if 'email' in data else find_user.email
     find_user.password = bcrypt.generate_password_hash(data['password']).decode('utf-8') if 'password' in data else find_user.password
     find_user.phone = data['phone'] if 'phone' in data else find_user.phone
@@ -86,6 +105,7 @@ def edit_user(username):
     return UserSchema().dump(find_user)
 
 @app.route('/user/<username>', methods=['DELETE'])
+@auth.login_required
 def delete_user(username):
     find_user = session.query(User).filter(User.username == username).one_or_none()
 
@@ -93,6 +113,12 @@ def delete_user(username):
         UserSchema().dump(find_user)
     except ValidationError as error:
         return error.messages, 'Invalid user supplied', '400'
+
+    # if auth.username() != username:
+    #     return 'Access error', 401
+
+    if not auth.current_user().isModerator:
+        return 'You don\'t have permission to delete this article', '401'
 
     if find_user is None:
         return 'User not found', '404'
@@ -110,17 +136,18 @@ def delete_user(username):
     return 'successfull operation', '200'
 
 @app.route('/article', methods=['POST'])
+@auth.login_required
 def create_article():
     data = request.json
     new_article = Article(
         name = data['name'], 
-        authorUserId = data['editorUserId'],
+        authorUserId = data['authorUserId'],
         text = data['text'],
         versionId = 1,
         publishDate = datetime.now(),
         lastModificationDate = datetime.now()
     )
-#curl -X POST http://127.0.0.1:5000/article -H "Content-Type: application/json" --data "{\"name\": \"article1\", \"authorUserId\": \"1\", \"text\": \"sometext\", \"versionId\": \"1\"}"
+# curl -X POST http://127.0.0.1:5000/article -H "Content-Type: application/json" --data "{\"name\": \"article1\", \"authorUserId\": \"1\", \"text\": \"sometext\", \"versionId\": \"1\"}"
         
     session.add(new_article)
     session.commit()
@@ -151,6 +178,7 @@ def get_article(ArticleId):
     return article, 'successfull operation'
     
 @app.route('/article/<ArticleId>', methods=['DELETE'])
+@auth.login_required
 def delete_article(ArticleId):
     find_article = session.query(Article).filter(Article.id == ArticleId).one_or_none()
 
@@ -162,6 +190,10 @@ def delete_article(ArticleId):
     if find_article is None:
         return 'Article not found', '404'
 
+    if not auth.current_user().isModerator:
+            # and find_article.authorUserId != auth.current_user():
+        return 'You don\'t have permission to delete article', '401'
+
     session.query(Articleversion).filter(Articleversion.articleId == ArticleId).update({Articleversion.articleId: None})
     session.delete(find_article)
     session.commit()
@@ -170,6 +202,7 @@ def delete_article(ArticleId):
 
 
 @app.route('/versions', methods=['POST'])
+@auth.login_required
 def create_version():
     data = request.json
     new_version = Articleversion(
@@ -191,6 +224,9 @@ def create_version():
     if find_user is None:
         return 'User not found', '404'
 
+    if auth.username() != find_user.username:
+        return 'Access error', 401
+
     if data['articleId'] != '0':
         find_article = session.query(Article).filter(Article.id == int(data['articleId'])).one_or_none()
 
@@ -206,16 +242,22 @@ def create_version():
     return 'succesfully added', '200'
 
 @app.route('/versions', methods=['GET'])
+@auth.login_required
 def get_versions():
+    if not auth.current_user().isModerator:
+        return 'You don\'t have permission to get versions', '401'
     if session.query(Articleversion):
         return jsonify(ArticleVersionSchema(many=True).dump(session.query(Articleversion).filter(Articleversion.status == 'new'))), '200'
     else:
         return 'Versions not found', '404'
 
 @app.route('/versions/<ChangeId>', methods=['GET'])
+@auth.login_required
 def get_version(ChangeId):
     find_version = session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
-
+    if not auth.current_user().isModerator:
+        # and find_version.name != auth.current_user():
+        return 'You don\'t have permission to view this article', '401'
     try:
         article_version = ArticleVersionSchema().dump(find_version)
     except ValidationError as error:
@@ -224,14 +266,20 @@ def get_version(ChangeId):
     if find_version is None:
         return 'article not found', '404'
 
+
     return article_version
 
 @app.route('/versions/<ChangeId>', methods=['PUT'])
+@auth.login_required
 def accept_version(ChangeId):
     find_version = session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
 
     if find_version is None:
         return 'Version not found'
+
+    if not auth.current_user().isModerator:
+        # and find_version.name != auth.current_user():
+        return 'You don\'t have permission to edit this article', '401'
 
     find_article = session.query(Article).filter(Article.id == find_version.articleId).one_or_none()
     if find_article is None:
@@ -262,6 +310,7 @@ def accept_version(ChangeId):
     return ArticleSchema().dump(find_article), '200'
 
 @app.route('/versions/<ChangeId>', methods=['DELETE'])
+@auth.login_required
 def decline_version(ChangeId):
     find_version = session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
 
@@ -272,7 +321,8 @@ def decline_version(ChangeId):
 
     if find_version is None:
         return 'Version not found', '404'
-
+    if not auth.current_user().isModerator:
+        return 'You don\'t have permission to delete this article', '401'
     find_version.status = 'declined'
 
     #session.delete(find_version)
@@ -294,8 +344,8 @@ def decline_version(ChangeId):
 #curl -X DELETE http://127.0.0.1:5000/user/user_to_delete
 
 #create_version
-#curl -X POST http://127.0.0.1:5000/versions -H "Content-Type: application/json" --data "{\"editorUserId\": \"1\", \"articleId\": \"0\",  \"name\": \"First version\", \"text\": \"First text\"}"
-#curl -X POST http://127.0.0.1:5000/versions -H "Content-Type: application/json" --data "{\"editorUserId\": \"1\", \"articleId\": \"5\",  \"name\": \"Edited version\", \"text\": \"Edited text\"}"
+# curl -X POST http://127.0.0.1:5000/versions -H "Content-Type: application/json" --data "{\"editorUserId\": \"1\", \"articleId\": \"0\",  \"name\": \"First version\", \"text\": \"First text\"}"
+# curl -X POST http://127.0.0.1:5000/versions -H "Content-Type: application/json" --data "{\"editorUserId\": \"1\", \"articleId\": \"5\",  \"name\": \"Edited version\", \"text\": \"Edited text\"}"
 
 #get_version
 #curl -X GET http://127.0.0.1:5000/versions/29
