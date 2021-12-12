@@ -1,26 +1,32 @@
 from flask import Flask, request, jsonify
 from flask_bcrypt import Bcrypt
-from model import User, Article, Articleversion, Session
+from model import db, User, Article, Articleversion
 from schema import UserSchema, ArticleSchema, ArticleVersionSchema
+from flask_sqlalchemy import SQLAlchemy
+import os
+
 from marshmallow import ValidationError
 from datetime import datetime
 from flask_httpauth import HTTPBasicAuth
 
 app = Flask(__name__)
-bcrypt = Bcrypt(app)
-session = Session()
-auth = HTTPBasicAuth()
 
-@app.route('/api/v1/hello-world-3')
-def hello():
-    return 'Hello World 3'
+environment = os.environ.get("ENVIRONMENT")
+if (environment is None):
+    environment = "development"
+app.config.from_json("config." + environment + '.json');
+
+db.init_app(app)
+
+bcrypt = Bcrypt(app)
+auth = HTTPBasicAuth()
 
 if __name__ == "__main__":
     app.run(debug=False)
 
 @auth.verify_password
 def verify_password(username, password):
-    found_user = session.query(User).filter_by(username=username).one_or_none()
+    found_user = db.session.query(User).filter_by(username=username).one_or_none()
     if found_user is not None and bcrypt.check_password_hash(found_user.password, password):
         return found_user
 
@@ -38,61 +44,50 @@ def create_user():
         isModerator = data['isModerator']
     )
     
-    if not session.query(User).filter(User.username == data['username']).one_or_none() is None:
-        return 'This username already exists', '400'
+    if not db.session.query(User).filter(User.username == data['username']).one_or_none() is None:
+        return jsonify ({'message': 'This username already exists'}), 400
 
-    if not session.query(User).filter(User.email == data['email']).one_or_none() is None:
-        return 'This email is taken', '400'
+    if not db.session.query(User).filter(User.email == data['email']).one_or_none() is None:
+        return jsonify ({'message': 'This email is taken'}), 400
 
-    session.add(new_user)
-    session.commit()
+    db.session.add(new_user)
+    db.session.commit()
 
-    return jsonify ({'message': 'successful operation'})
-
-@app.route('/user/login', methods=['GET'])
-def login():
-    pass;
-
-@app.route('/user/logout', methods=['GET'])
-def logout():
-    pass
+    return jsonify ({'message': 'successful operation'}), 200
 
 @app.route('/user/<username>', methods=['GET'])
 @auth.login_required
 def get_user(username):
-    find_user = session.query(User).filter(User.username == username).one_or_none()
-    user_schema = UserSchema()
-    try:
-        user = user_schema.dump(find_user)
-    except ValidationError as error:
-        return error.messages, 'Invalid username supplied', '400'
+    find_user = db.session.query(User).filter(User.username == username).one_or_none()
 
     if find_user is None:
-        return 'User not found', '404'
+        return jsonify ({'message': 'User not found'}), 404
 
     if find_user.username != auth.current_user().username:
-        return 'You don\'t have required permission', '401'
+        return jsonify ({'message': 'You don\'t have required permission'}), 401
 
-    return user
+    user = UserSchema().dump(find_user)
+    return user, 200
 
 @app.route('/user/<username>', methods=['PUT'])
 @auth.login_required
 def edit_user(username):
-    find_user = session.query(User).filter(User.username == username).one_or_none()
+    find_user = db.session.query(User).filter(User.username == username).one_or_none()
     
     if find_user is None:
-        return 'User not found', '404'
+        return jsonify ({'message':'User not found'}), 404
 
     if find_user.username != auth.current_user().username:
-        return 'You can\'t update this user', '401'
+        return jsonify ({'message':'You can\'t update this user'}), 401
 
     data = request.json
     if username != data['username']:
-        if not session.query(User).filter(User.username == data['username']).one_or_none() is None:
-            return 'This username already exists', '400'
+        if not db.session.query(User).filter(User.username == data['username']).one_or_none() is None:
+            return jsonify ({'message':'This username already exists'}), 400
+
     if find_user.email!=data['email']:
-        if not session.query(User).filter(User.email == data['email']).one_or_none() is None:
-            return 'This email is taken', '400'
+        if not db.session.query(User).filter(User.email == data['email']).one_or_none() is None:
+            return jsonify ({'message':'This email is taken'}), 400
 
     find_user.username = data['username'] if 'username' in data else find_user.username
     find_user.firstName = data['firstName'] if 'firstName' in data else find_user.firstName
@@ -101,13 +96,13 @@ def edit_user(username):
     find_user.password = bcrypt.generate_password_hash(data['password']).decode('utf-8') if 'password' in data else find_user.password
     find_user.phone = data['phone'] if 'phone' in data else find_user.phone
 
-    session.commit()
+    db.session.commit()
     return UserSchema().dump(find_user)
 
 @app.route('/user/<username>', methods=['DELETE'])
 @auth.login_required
 def delete_user(username):
-    find_user = session.query(User).filter(User.username == username).one_or_none()
+    find_user = db.session.query(User).filter(User.username == username).one_or_none()
 
     try:
         UserSchema().dump(find_user)
@@ -122,17 +117,17 @@ def delete_user(username):
 
     if find_user is None:
         return 'User not found', '404'
-    find_article = session.query(Article).filter(Article.authorUserId == find_user.id).all()
-    session.query(Articleversion).filter(Articleversion.editorUserId == find_user.id).update({Articleversion.articleId: None})
-    find_version = session.query(Articleversion).filter(Articleversion.editorUserId == find_user.id).all()
+    find_article = db.session.query(Article).filter(Article.authorUserId == find_user.id).all()
+    db.session.query(Articleversion).filter(Articleversion.editorUserId == find_user.id).update({Articleversion.articleId: None})
+    find_version = db.session.query(Articleversion).filter(Articleversion.editorUserId == find_user.id).all()
     if find_article:
         for i in find_article:
-            session.delete(i)
+            db.session.delete(i)
     if find_version:
         for i in find_version:
-            session.delete(i)
-    session.delete(find_user)
-    session.commit()
+            db.session.delete(i)
+    db.session.delete(find_user)
+    db.session.commit()
     return 'successfull operation', '200'
 
 @app.route('/article', methods=['POST'])
@@ -149,15 +144,14 @@ def create_article():
     )
 # curl -X POST http://127.0.0.1:5000/article -H "Content-Type: application/json" --data "{\"name\": \"article1\", \"authorUserId\": \"1\", \"text\": \"sometext\", \"versionId\": \"1\"}"
         
-    session.add(new_article)
-    session.commit()
+    db.session.add(new_article)
+    db.session.commit()
 
     return jsonify({'message': 'successful operation'})
 
 @app.route('/article', methods=['GET'])
 def articles():
-
-    article_list = session.query(Article)
+    article_list = db.session.query(Article)
     if article_list:
         return jsonify(ArticleSchema(many=True).dump(article_list)), '200'
     else:
@@ -165,7 +159,7 @@ def articles():
 
 @app.route('/article/<ArticleId>', methods=['GET'])
 def get_article(ArticleId):
-    find_article = session.query(Article).filter(Article.id == ArticleId).one_or_none()
+    find_article = db.session.query(Article).filter(Article.id == ArticleId).one_or_none()
 
     try:
         article = ArticleSchema().dump(find_article)
@@ -180,7 +174,7 @@ def get_article(ArticleId):
 @app.route('/article/<ArticleId>', methods=['DELETE'])
 @auth.login_required
 def delete_article(ArticleId):
-    find_article = session.query(Article).filter(Article.id == ArticleId).one_or_none()
+    find_article = db.session.query(Article).filter(Article.id == ArticleId).one_or_none()
 
     try:
         article = ArticleSchema().dump(find_article)
@@ -194,9 +188,9 @@ def delete_article(ArticleId):
             # and find_article.authorUserId != auth.current_user():
         return 'You don\'t have permission to delete article', '401'
 
-    session.query(Articleversion).filter(Articleversion.articleId == ArticleId).update({Articleversion.articleId: None})
-    session.delete(find_article)
-    session.commit()
+    db.session.query(Articleversion).filter(Articleversion.articleId == ArticleId).update({Articleversion.articleId: None})
+    db.session.delete(find_article)
+    db.session.commit()
 
     return 'successfull operation', '200'
 
@@ -220,7 +214,7 @@ def create_version():
 
 #curl -X POST http://127.0.0.1:5000/versions -H "Content-Type: application/json" --data "{\"editorUserId\": \"1\", \"articleId\": \"0\",  \"name\": \"First version\", \"text\": \"First text\"}"
     
-    find_user = session.query(User).filter(User.id == int(data['editorUserId'])).one_or_none()
+    find_user = db.session.query(User).filter(User.id == int(data['editorUserId'])).one_or_none()
     if find_user is None:
         return 'User not found', '404'
 
@@ -228,17 +222,17 @@ def create_version():
         return 'Access error', 401
 
     if data['articleId'] != '0':
-        find_article = session.query(Article).filter(Article.id == int(data['articleId'])).one_or_none()
+        find_article = db.session.query(Article).filter(Article.id == int(data['articleId'])).one_or_none()
 
         if find_article is None:
             return 'Article not found', '404'   
-        session.add(new_version)
+        db.session.add(new_version)
         
     else:
         new_version.articleId = None
-        session.add(new_version)
+        db.session.add(new_version)
     
-    session.commit()
+    db.session.commit()
     return 'succesfully added', '200'
 
 @app.route('/versions', methods=['GET'])
@@ -246,15 +240,15 @@ def create_version():
 def get_versions():
     if not auth.current_user().isModerator:
         return 'You don\'t have permission to get versions', '401'
-    if session.query(Articleversion):
-        return jsonify(ArticleVersionSchema(many=True).dump(session.query(Articleversion).filter(Articleversion.status == 'new'))), '200'
+    if db.session.query(Articleversion):
+        return jsonify(ArticleVersionSchema(many=True).dump(db.session.query(Articleversion).filter(Articleversion.status == 'new'))), '200'
     else:
         return 'Versions not found', '404'
 
 @app.route('/versions/<ChangeId>', methods=['GET'])
 @auth.login_required
 def get_version(ChangeId):
-    find_version = session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
+    find_version = db.session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
     if not auth.current_user().isModerator:
         # and find_version.name != auth.current_user():
         return 'You don\'t have permission to view this article', '401'
@@ -272,7 +266,7 @@ def get_version(ChangeId):
 @app.route('/versions/<ChangeId>', methods=['PUT'])
 @auth.login_required
 def accept_version(ChangeId):
-    find_version = session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
+    find_version = db.session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
 
     if find_version is None:
         return 'Version not found'
@@ -281,7 +275,7 @@ def accept_version(ChangeId):
         # and find_version.name != auth.current_user():
         return 'You don\'t have permission to edit this article', '401'
 
-    find_article = session.query(Article).filter(Article.id == find_version.articleId).one_or_none()
+    find_article = db.session.query(Article).filter(Article.id == find_version.articleId).one_or_none()
     if find_article is None:
         new_article = Article(
             name = find_version.name, 
@@ -291,8 +285,8 @@ def accept_version(ChangeId):
             publishDate = datetime.now(),
             lastModificationDate = datetime.now()
         )
-        session.add(new_article)
-        session.commit()
+        db.session.add(new_article)
+        db.session.commit()
         find_version.articleId = new_article.id
         find_article = session.query(Article).filter(Article.id == find_version.articleId).one_or_none()
     else:
@@ -305,14 +299,14 @@ def accept_version(ChangeId):
 
 #curl -X PUT http://127.0.0.1:5000/versions/18
 
-    session.commit()
+    db.session.commit()
 
     return ArticleSchema().dump(find_article), '200'
 
 @app.route('/versions/<ChangeId>', methods=['DELETE'])
 @auth.login_required
 def decline_version(ChangeId):
-    find_version = session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
+    find_version = db.session.query(Articleversion).filter(Articleversion.id == ChangeId).one_or_none()
 
     try:
         ArticleVersionSchema().dump(find_version)
@@ -325,8 +319,8 @@ def decline_version(ChangeId):
         return 'You don\'t have permission to delete this article', '401'
     find_version.status = 'declined'
 
-    #session.delete(find_version)
-    session.commit()
+    #db.session.delete(find_version)
+    db.session.commit()
     return 'successful operation'
 
 

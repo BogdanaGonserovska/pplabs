@@ -19,3 +19,6 @@ alembic revision --autogenerate -m 'Initial script'
 alembic upgrade head
 Щоб створити автоматично таблиці з бази даних в MySQL:
 pip install sqlacodegen
+
+
+coverage run --source ./ -m unittest discover tests

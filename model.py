@@ -1,22 +1,17 @@
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text, Boolean
-from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
+from sqlalchemy.orm import relationship
+from flask_sqlalchemy import SQLAlchemy
 
-Base = declarative_base()
-metadata = Base.metadata
-mysql_engine = create_engine("mysql+pymysql://root:12272027@localhost/articles", encoding="utf-8", echo=True, future=True)
-Session = sessionmaker(bind=mysql_engine)
-session = Session()
+db = SQLAlchemy()
 
-class Article(Base):
+class Article(db.Model):
     __tablename__ = 'article'
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
-    authorUserId = Column(ForeignKey('user.id'), nullable=False, index=True)
+    authorUserId = Column(ForeignKey('user.id', name = 'article_ibfk_2'), nullable=False, index=True)
     text = Column(Text, nullable=False)
-    versionId = Column(ForeignKey('articleversion.id'), nullable=False, index=True)
+    versionId = Column(ForeignKey('articleversion.id', name = 'article_ibfk_1'), nullable=False, index=True)
     publishDate = Column(DateTime, nullable=False)
     lastModificationDate = Column(DateTime)
 
@@ -25,18 +20,18 @@ class Article(Base):
 
 ArticleVersionStatus = Enum('new', 'accepted', 'declined')
 
-class Articleversion(Base):
+class Articleversion(db.Model):
     __tablename__ = 'articleversion'
 
     id = Column(Integer, primary_key=True)
-    editorUserId = Column(ForeignKey('user.id', ondelete='RESTRICT', onupdate='RESTRICT'), nullable=False, index=True)
+    editorUserId = Column(ForeignKey('user.id', ondelete='RESTRICT', onupdate='RESTRICT', name = 'articleversion_ibfk_2'), nullable=False, index=True)
     date = Column(DateTime, nullable=False)
-    originalId = Column(ForeignKey('articleversion.id', ondelete='RESTRICT', onupdate='RESTRICT'))
-    articleId = Column(ForeignKey('article.id', ondelete='RESTRICT', onupdate='RESTRICT'), index=True)
+    originalId = Column(ForeignKey('articleversion.id', ondelete='RESTRICT', onupdate='RESTRICT', name = 'articleversion_ibfk_3'))
+    articleId = Column(ForeignKey('article.id', ondelete='RESTRICT', onupdate='RESTRICT', name = 'articleversion_ibfk_1'), index=True)
     name = Column(String(255), nullable=False)
     text = Column(Text, nullable=False)
     status = Column(ArticleVersionStatus, nullable=False)
-    moderatorUserId = Column(ForeignKey('user.id', ondelete='RESTRICT', onupdate='RESTRICT'), index=True)
+    moderatorUserId = Column(ForeignKey('user.id', ondelete='RESTRICT', onupdate='RESTRICT', name='articleversion_ibfk_4'), index=True)
     moderatedDate = Column(DateTime, index=True)
     declineReason = Column(String(255))
 
@@ -46,7 +41,7 @@ class Articleversion(Base):
     parent = relationship('Articleversion', remote_side=[id])
 
 
-class User(Base):
+class User(db.Model):
     __tablename__ = 'user'
 
     id = Column(Integer, primary_key=True)
@@ -60,16 +55,13 @@ class User(Base):
     isActive = Column(Boolean, nullable=False)
 
 
-class UserLogin(Base):
+class UserLogin(db.Model):
     __tablename__ = 'userlogins'
 
     id = Column(Integer, primary_key=True)
-    userId = Column(ForeignKey('user.id'), nullable=False, index=True)
+    userId = Column(ForeignKey('user.id'), nullable=False, index=True, name = 'userlogins_ibfk_1')
     token = Column(String(50), nullable=False, unique=True)
     loginDate = Column(DateTime, nullable=False)
     logoutDate = Column(DateTime)
 
     user = relationship('User')
-
-#if __name__ == "__main__":
-#    BaseModel.metadata.create_all(engine)
