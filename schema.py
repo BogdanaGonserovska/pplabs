@@ -19,9 +19,9 @@ class UserSchema(Schema):
 class ArticleSchema(Schema):
     id = fields.Int()
     name = fields.Str()
-    authorUserId = fields.Nested(UserSchema(only=('id',)))
+    authorUserId = fields.Int()
     text = fields.Str()
-    versionId = fields.Nested(lambda: ArticleVersionSchema(only=('id',)))
+    versionId = fields.Int()
     publishDate = fields.DateTime()
     lastModificationDate = fields.DateTime()
 
@@ -31,15 +31,15 @@ class ArticleSchema(Schema):
 
 class ArticleVersionSchema(Schema):
     id = fields.Int()
-    editorUserId = fields.Nested(UserSchema(only=('id',)))
+    editorUserId = fields.Int()
     date = fields.DateTime()
-    originalId = fields.Nested(lambda: ArticleVersionSchema(only=('id',)))
-    articleId = fields.Nested(ArticleSchema(exclude=('id',)))
+    originalId = fields.Int(required=False)
+    articleId = fields.Int(required=False)
     name = fields.Str()
     text = fields.Str()
     status = fields.Str(validate=validate.OneOf(['new', 'accepted', 'declined']))
-    moderatorUserId = fields.Nested(UserSchema(only=('id',)))
-    moderatedDate = fields.DateTime()
+    moderatorUserId = fields.Int(required=False)
+    moderatedDate = fields.DateTime(required=False)
     declineReason = fields.Str()
 
     @post_load
