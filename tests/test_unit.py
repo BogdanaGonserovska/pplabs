@@ -1,28 +1,43 @@
-from unittest import TestCase
-from unittest.mock import patch, Mock
-from schema import UserSchema, ArticleSchema, ArticleVersionSchema
-from model import User, Article, Articleversion
+from model import User
 
-SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:Ira.ko03@127.0.0.1:3306/articles_test"
+import os
+os.environ["ENVIRONMENT"] = "test";
 
-from app import bcrypt, verify_password
+from app import app, bcrypt, verify_password
+from model import db
+from tests.test_api import BaseTestCase
 
-#from test_api import BaseTestCase
-
-@patch("model.Session")
-class TestAuthenticate(TestCase):
+class TestAuthentication(BaseTestCase):
     def setUp(self):
-        # articleservice.config['SECRET_KEY']=
+        super().setUp()
 
-        self.admin_username = "MODERATOR",
-        self.admin_password = "ModeratorAdmin"
-        self.hashed_admin_password = bcrypt.generate_password_hash(self.admin_password).decode('utf-8')
-        self.user_username = 'MickeyMouse'
-        self.user_password = 'MickeY123'
-        self.hashed_user_password = bcrypt.generate_password_hash(self.user_password).decode('utf-8')
+    def tearDown(self):
+        super().tearDown()
+        
+    def create_user_db(self, data):
+        new_user = User(
+            username = data['username'], 
+            firstName = data['firstName'],
+            lastName = data['lastName'], 
+            email = data['email'], 
+            password = bcrypt.generate_password_hash(data['password']).decode('utf-8'),
+            phone = data['phone'],
+            isActive = data['isActive'],
+            isModerator = data['isModerator']
+        )
+    
+        db.session.add(new_user)
+        db.session.commit()
+        return new_user
 
-    def test_verify_password_failed(self, Session):
-        #Session().query().filter_by().one_or_none = Mock(return_value=User(password=self.hashed_admin_password))
-        user = verify_password(self.admin_username, "InvalidPassword")
+
+    def test_verify_password_failed(self):
+        new_user = self.create_user_db(self.user_1_data)
+        user = verify_password(self.user_1_data["username"], "InvalidPassword")
         self.assertIsNone(user)
 
+    def test_verify_password_success(self):
+        new_user = self.create_user_db(self.user_1_data)
+        user = verify_password(self.user_1_data["username"], self.user_1_data["password"])
+        self.assertIsNotNone(user)
+        self.assertEqual(user.email, self.user_1_data["email"])

@@ -1,3 +1,4 @@
 {
-	"SQLALCHEMY_DATABASE_URI": "mysql+pymysql://root:Ira.ko03@127.0.0.1:3306/article_service"
+	"SQLALCHEMY_DATABASE_URI": "mysql+pymysql://root:Ira.ko03@127.0.0.1:3306/article_service",
+	"SQLALCHEMY_TRACK_MODIFICATIONS": false
 }

@@ -22,3 +22,4 @@ pip install sqlacodegen
 
 
 coverage run --source ./ -m unittest discover tests
+coverage report -m

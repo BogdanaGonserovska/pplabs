@@ -12,9 +12,9 @@ class UserSchema(Schema):
     isModerator = fields.Bool()
     isActive = fields.Bool()
 
-    @post_load
-    def create_user(self, data, **kwargs):
-        return User(**data)
+    #@post_load
+    #def create_user(self, data, **kwargs):
+    #    return User(**data)
 
 class ArticleSchema(Schema):
     id = fields.Int()
@@ -25,9 +25,9 @@ class ArticleSchema(Schema):
     publishDate = fields.DateTime()
     lastModificationDate = fields.DateTime()
 
-    @post_load
-    def create_article(self, data, **kwargs):
-        return Article(**data)
+    #@post_load
+    #def create_article(self, data, **kwargs):
+    #    return Article(**data)
 
 class ArticleVersionSchema(Schema):
     id = fields.Int()
@@ -42,7 +42,7 @@ class ArticleVersionSchema(Schema):
     moderatedDate = fields.DateTime(required=False)
     declineReason = fields.Str()
 
-    @post_load
-    def create_articleversion(self, data, **kwargs):
-        return Articleversion(**data)
+    #@post_load
+    #def create_articleversion(self, data, **kwargs):
+    #    return Articleversion(**data)
 

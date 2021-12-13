@@ -55,13 +55,13 @@ class User(db.Model):
     isActive = Column(Boolean, nullable=False)
 
 
-class UserLogin(db.Model):
-    __tablename__ = 'userlogins'
+#class UserLogin(db.Model):
+#    __tablename__ = 'userlogins'
 
-    id = Column(Integer, primary_key=True)
-    userId = Column(ForeignKey('user.id'), nullable=False, index=True, name = 'userlogins_ibfk_1')
-    token = Column(String(50), nullable=False, unique=True)
-    loginDate = Column(DateTime, nullable=False)
-    logoutDate = Column(DateTime)
+#    id = Column(Integer, primary_key=True)
+#    userId = Column(ForeignKey('user.id'), nullable=False, index=True, name = 'userlogins_ibfk_1')
+#    token = Column(String(50), nullable=False, unique=True)
+#    loginDate = Column(DateTime, nullable=False)
+#    logoutDate = Column(DateTime)
 
-    user = relationship('User')
+#    user = relationship('User')

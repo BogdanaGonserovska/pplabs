@@ -1,10 +1,8 @@
-# from unittest import TestCase
-# from unittest.mock import patch, Mock
 from unittest.mock import ANY
 from flask import url_for
 from flask_bcrypt import generate_password_hash
 from flask_testing import TestCase
-from model import User, UserLogin, Articleversion, Article, ArticleVersionStatus
+from model import User, Articleversion, Article, ArticleVersionStatus
 import base64
 
 import os
@@ -16,17 +14,6 @@ from model import db
 class BaseTestCase(TestCase):
     def setUp(self):
         super().setUp()
-
-        self.admin_credentials = {
-            "username" : "MODERATOR",
-            # "firstName" = "Admin",
-            # "lastName" = "Admin",
-            # "email" = "admin@gmail.com"
-            "password" : "ModeratorAdmin",
-            # "phone" = "phone0",
-            # "isModerator" = True,
-            # "isActive" = True,
-        }
 
         self.user_1_data= {
             "username" : "username1",
@@ -80,33 +67,13 @@ class BaseTestCase(TestCase):
             "text" : "yesterday was ..."
          }
 
-        #self.article_1_data = {
-        #    "name" : "aricle1",
-        #    "authorUserId" : "1",
-        #    "text" : "Today is ...",
-        #    "versionId" : "0",
-        #    #"publishDate" : "",            
-        # }
-
-        #self.article_2_data = {
-        #    "name" : "aricle2",
-        #    "authorUserId" : "2",
-        #    "text" : "Yesetrday was ...",
-        #    "versionId" : "0",
-        #    #"publishDate" : "",            
-        # }
-
         self.client = self.app.test_client()
 
         db.drop_all()
         db.create_all()
 
-        #self.context = self.app.test_request_context()
-
     def tearDown(self):
         db.session.remove()
-        #self.context.pop()
-        # TESTING = True
 
     def create_app(self):
         return app
@@ -263,6 +230,8 @@ class TestUsers(BaseTestCase):
 class TestVersions(BaseTestCase):
     def test_create_version(self):
         resp = self.create_user(self.user_1_data, checkIsSuccessful = True)
+        user1Id = resp.json["id"]
+
         resp = self.create_version(self.version_1_data, self.user_1_credentials, checkIsSuccessful = True)
         originalId = resp.json["id"]
 
@@ -273,6 +242,16 @@ class TestVersions(BaseTestCase):
 
         self.version_2_data["originalId"] = originalId        
         resp = self.create_version(self.version_2_data, self.user_1_credentials, checkIsSuccessful = True)
+        versionId = resp.json["id"]
+
+        find_version = db.session.query(Articleversion).filter(Articleversion.id == versionId).one_or_none()
+        self.assertIsNotNone(find_version)
+        self.assertEqual(self.version_2_data["originalId"], find_version.originalId)
+        self.assertEqual("new", find_version.status)
+        self.assertEqual(self.version_2_data["name"], find_version.name)
+        self.assertEqual(self.version_2_data["text"], find_version.text)
+        self.assertEqual(user1Id, find_version.editorUserId)
+
 
     def test_get_versions(self):
         url = url_for('get_versions')
@@ -422,3 +401,55 @@ class TestVersions(BaseTestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json, {'message': 'Version is already moderated'})
 
+class TestArticles(BaseTestCase):
+    def test_get_articles(self):
+        url = url_for('get_articles')
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.json, {'message': 'Articles not found'})
+
+        self.user_1_data["isModerator"] = False
+        resp = self.create_user(self.user_1_data, checkIsSuccessful = True)
+
+        self.user_2_data["isModerator"] = True
+        resp = self.create_user(self.user_2_data, checkIsSuccessful = True)
+
+        resp = self.create_version(self.version_1_data, self.user_1_credentials, checkIsSuccessful = True)
+        versionId = resp.json["id"]
+
+        url = url_for('accept_version', ChangeId=versionId)
+        resp = self.client.put(url, headers = self.get_auth_headers(self.user_2_credentials))
+        self.assertEqual(resp.status_code, 200)
+
+        url = url_for('get_articles')
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json), 1)
+        self.assertEqual(resp.json[0]["versionId"], versionId)
+
+    def test_get_article(self):
+        url = url_for('get_article', ArticleId=5)
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.json, {'message': 'Article not found'})
+
+        self.user_1_data["isModerator"] = False
+        resp = self.create_user(self.user_1_data, checkIsSuccessful = True)
+
+        self.user_2_data["isModerator"] = True
+        resp = self.create_user(self.user_2_data, checkIsSuccessful = True)
+
+        resp = self.create_version(self.version_1_data, self.user_1_credentials, checkIsSuccessful = True)
+        versionId = resp.json["id"]
+
+        url = url_for('accept_version', ChangeId=versionId)
+        resp = self.client.put(url, headers = self.get_auth_headers(self.user_2_credentials))
+        self.assertEqual(resp.status_code, 200)
+        articleId = resp.json["id"]
+
+        url = url_for('get_article', ArticleId=articleId)
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json["id"], articleId)
+        self.assertEqual(resp.json["name"], self.version_1_data["name"])
+        self.assertEqual(resp.json["text"], self.version_1_data["text"])

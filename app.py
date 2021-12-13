@@ -119,71 +119,6 @@ def delete_user(username):
 
     return jsonify ({'message':'successfull operation'}), 200
 
-@app.route('/article', methods=['POST'])
-@auth.login_required
-def create_article():
-    data = request.json
-    new_article = Article(
-        name = data['name'], 
-        authorUserId = data['authorUserId'],
-        text = data['text'],
-        versionId = 1,
-        publishDate = datetime.now(),
-        lastModificationDate = datetime.now()
-    )
-# curl -X POST http://127.0.0.1:5000/article -H "Content-Type: application/json" --data "{\"name\": \"article1\", \"authorUserId\": \"1\", \"text\": \"sometext\", \"versionId\": \"1\"}"
-        
-    db.session.add(new_article)
-    db.session.commit()
-
-    return jsonify({'message': 'successful operation'}), 200
-
-@app.route('/article', methods=['GET'])
-def articles():
-    article_list = db.session.query(Article)
-    if article_list:
-        return jsonify(ArticleSchema(many=True).dump(article_list)), 200
-    else:
-        return jsonify ({'message':'Articles not found'}), 404
-
-@app.route('/article/<ArticleId>', methods=['GET'])
-def get_article(ArticleId):
-    find_article = db.session.query(Article).filter(Article.id == ArticleId).one_or_none()
-
-    try:
-        article = ArticleSchema().dump(find_article)
-    except ValidationError as error:
-        return error.messages, jsonify ({'message':'Invalid article supplied'}), 400
-
-    if find_article is None:
-        return jsonify ({'message':'article not found'}), 404
-
-    return article, jsonify ({'message':'successfull operation'}), 200
-    
-@app.route('/article/<ArticleId>', methods=['DELETE'])
-@auth.login_required
-def delete_article(ArticleId):
-    find_article = db.session.query(Article).filter(Article.id == ArticleId).one_or_none()
-
-    try:
-        article = ArticleSchema().dump(find_article)
-    except ValidationError as error:
-        return error.messages, jsonify ({'message':'Invalid Article supplied'}), 400
-
-    if find_article is None:
-        return jsonify ({'message':'Article not found'}), 404
-
-    if not auth.current_user().isModerator:
-            # and find_article.authorUserId != auth.current_user():
-        return jsonify ({'message':'You don\'t have permission to delete article'}), 401
-
-    db.session.query(Articleversion).filter(Articleversion.articleId == ArticleId).update({Articleversion.articleId: None})
-    db.session.delete(find_article)
-    db.session.commit()
-
-    return jsonify ({'message':'successfull operation'}), 200
-
-
 @app.route('/versions', methods=['POST'])
 @auth.login_required
 def create_version():
@@ -307,7 +242,22 @@ def decline_version(ChangeId):
 
     return jsonify ({'message':'successful operation'}), 200
 
+@app.route('/article', methods=['GET'])
+def get_articles():
+    article_list = db.session.query(Article).all()
+    if len(article_list) > 0:
+        return jsonify(ArticleSchema(many=True).dump(article_list)), 200
+    else:
+        return jsonify ({'message':'Articles not found'}), 404
 
+@app.route('/article/<ArticleId>', methods=['GET'])
+def get_article(ArticleId):
+    find_article = db.session.query(Article).filter(Article.id == ArticleId).one_or_none()
+    if find_article is None:
+        return jsonify ({'message':'Article not found'}), 404
+
+    return ArticleSchema().dump(find_article), 200
+    
 #create_user
 #curl -X POST http://127.0.0.1:5000/user -H "Content-Type: application/json" --data "{\"username\": \"user1\", \"firstName\": \"Bohdana\", \"lastName\": \"Honserovska\", \"email\": \"someemail@gmail.com\", \"password\": \"1111\", \"phone\": \"0992341122\"}"
 #curl -X POST http://127.0.0.1:5000/user -H "Content-Type: application/json" --data "{\"username\": \"user_to_delete\", \"firstName\": \"Bohdana\", \"lastName\": \"Honserovska\", \"email\": \"newemail@gmail.com\", \"password\": \"1111\", \"phone\": \"0992341122\"}"
